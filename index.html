@@ -1,0 +1,896 @@
+cat > /mnt/user-data/outputs/credit-tracker.html << 'ENDOFFILE'
+<!DOCTYPE html>
+<html lang="am">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>የጨርቅ ሱቅ — ክሬዲት መከታተያ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --sky:#5B9EC9;--sky-light:#EAF4FB;--sky-dark:#2C6E9E;
+  --peach:#FDDCB5;--peach-light:#FFF4E8;--peach-dark:#E8B87A;
+  --gold:#D4900A;--gold-light:#F5D78E;--gold-dark:#A86C00;
+  --green:#2E8B57;--green-light:#E8F5EE;
+  --red:#C0392B;--red-light:#FDECEA;
+  --orange:#E07820;
+  --white:#FFFDF8;--bg:#D6EAF5;
+  --text:#1A1A2E;--text2:#555;--border:#C8D8E8;
+  --shadow:0 4px 18px rgba(44,110,158,.13);
+  --radius:14px;
+}
+body{font-family:'Times New Roman',Times,serif;background:var(--bg);min-height:100vh;color:var(--text);overflow-x:hidden;}
+
+/* ── HEADER ── */
+.app-header{
+  background:linear-gradient(135deg,var(--sky-dark) 0%,#1A4A72 100%);
+  color:#fff;padding:14px 16px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 3px 14px rgba(0,0,0,.25);position:sticky;top:0;z-index:200;
+}
+.app-header h1{font-size:1.05rem;font-weight:bold;letter-spacing:.3px;}
+.app-header p{font-size:.72rem;opacity:.8;margin-top:2px;}
+.header-right{display:flex;gap:8px;}
+.icon-btn{background:rgba(255,255,255,.15);border:none;color:#fff;
+  border-radius:9px;padding:8px 11px;cursor:pointer;font-size:.85rem;
+  font-family:inherit;transition:.2s;font-weight:bold;}
+.icon-btn:hover{background:rgba(255,255,255,.28);}
+
+/* ── VIEWS ── */
+.view{display:none;padding:14px 12px 80px;}
+.view.active{display:block;}
+
+/* ── CARDS ── */
+.card{background:var(--peach);border-radius:var(--radius);padding:16px;
+  margin-bottom:14px;box-shadow:var(--shadow);border:1px solid rgba(200,160,90,.25);}
+.card-title{font-size:.95rem;font-weight:bold;color:var(--sky-dark);
+  margin-bottom:14px;padding-bottom:9px;border-bottom:2.5px solid var(--gold);
+  display:flex;align-items:center;gap:7px;}
+
+/* ── DASHBOARD SUMMARY ── */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.dash-box{background:#fff;border-radius:12px;padding:14px 10px;text-align:center;
+  box-shadow:var(--shadow);border:1px solid var(--border);}
+.dash-box .d-lbl{font-size:.68rem;font-weight:bold;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
+.dash-box .d-val{font-size:1.12rem;font-weight:bold;color:var(--sky-dark);}
+.dash-box.total-credit .d-val{color:var(--red);}
+.dash-box.total-paid .d-val{color:var(--green);}
+.dash-box.remaining .d-val{color:var(--gold-dark);}
+.dash-box.customers .d-val{color:var(--sky-dark);}
+
+/* ── CUSTOMER CARDS ── */
+.customer-card{
+  background:#fff;border-radius:14px;padding:15px 15px 13px;
+  margin-bottom:12px;box-shadow:var(--shadow);
+  border-left:5px solid var(--gold);cursor:pointer;
+  transition:transform .15s,box-shadow .15s;position:relative;
+}
+.customer-card:hover{transform:translateY(-2px);box-shadow:0 7px 24px rgba(44,110,158,.18);}
+.customer-card.paid{border-left-color:var(--green);}
+.customer-card.partial{border-left-color:var(--orange);}
+.customer-card.high{border-left-color:var(--red);}
+.cc-header{display:flex;justify-content:space-between;align-items:flex-start;}
+.cc-name{font-size:1rem;font-weight:bold;color:var(--sky-dark);}
+.cc-phone{font-size:.75rem;color:var(--text2);margin-top:2px;}
+.cc-badge{
+  font-size:.68rem;font-weight:bold;padding:3px 9px;border-radius:20px;white-space:nowrap;
+}
+.badge-paid{background:var(--green-light);color:var(--green);}
+.badge-partial{background:#FFF3E0;color:var(--orange);}
+.badge-owed{background:var(--red-light);color:var(--red);}
+.cc-amounts{display:flex;justify-content:space-between;margin-top:10px;
+  padding-top:9px;border-top:1px dashed var(--border);}
+.cc-amt{text-align:center;flex:1;}
+.cc-amt .a-lbl{font-size:.65rem;color:var(--text2);font-weight:bold;
+  text-transform:uppercase;display:block;margin-bottom:3px;}
+.cc-amt .a-val{font-size:.85rem;font-weight:bold;}
+.a-red{color:var(--red);}
+.a-green{color:var(--green);}
+.a-gold{color:var(--gold-dark);}
+.cc-last{font-size:.72rem;color:var(--text2);margin-top:8px;}
+
+/* ── CUSTOMER DETAIL ── */
+.detail-header{
+  background:linear-gradient(135deg,var(--sky-dark),#1A4A72);
+  color:#fff;padding:16px;border-radius:var(--radius);
+  margin-bottom:14px;box-shadow:var(--shadow);
+}
+.dh-name{font-size:1.2rem;font-weight:bold;margin-bottom:4px;}
+.dh-phone{font-size:.8rem;opacity:.8;}
+.dh-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:13px;}
+.dh-box{background:rgba(255,255,255,.15);border-radius:10px;padding:10px 8px;text-align:center;}
+.dh-box .dl{font-size:.63rem;opacity:.8;display:block;margin-bottom:3px;font-weight:bold;text-transform:uppercase;}
+.dh-box .dv{font-size:1rem;font-weight:bold;}
+.dh-remaining{background:rgba(255,220,100,.25);}
+
+/* Transaction list */
+.txn-item{
+  background:#fff;border-radius:11px;padding:13px 14px;
+  margin-bottom:10px;border-left:4px solid var(--gold);
+  box-shadow:0 2px 10px rgba(0,0,0,.07);position:relative;
+}
+.txn-item.purchase{border-left-color:var(--red);}
+.txn-item.payment{border-left-color:var(--green);}
+.txn-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.txn-label{font-size:.88rem;font-weight:bold;color:var(--sky-dark);}
+.txn-date{font-size:.7rem;color:var(--text2);}
+.txn-detail{font-size:.78rem;color:var(--text2);line-height:1.55;}
+.txn-amount{font-size:.95rem;font-weight:bold;margin-top:7px;}
+.txn-del{position:absolute;top:10px;right:10px;background:none;border:none;
+  color:#CCC;cursor:pointer;font-size:.95rem;padding:2px 6px;transition:.2s;}
+.txn-del:hover{color:var(--red);}
+
+.detail-actions{display:flex;gap:10px;margin-bottom:14px;}
+.detail-actions .btn{flex:1;}
+
+/* ── FORMS & MODALS ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);
+  z-index:500;display:flex;align-items:flex-end;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-box{
+  background:var(--peach-light);border-radius:22px 22px 0 0;
+  padding:20px 16px 36px;width:100%;max-height:90vh;overflow-y:auto;
+  transform:translateY(100%);transition:transform .3s ease;
+  box-shadow:0 -8px 30px rgba(0,0,0,.2);
+}
+.modal-overlay.open .modal-box{transform:translateY(0);}
+.modal-title{font-size:1rem;font-weight:bold;color:var(--sky-dark);
+  margin-bottom:16px;padding-bottom:9px;border-bottom:2px solid var(--gold);
+  display:flex;align-items:center;gap:7px;}
+.modal-close{margin-left:auto;background:none;border:none;
+  font-size:1.2rem;color:var(--text2);cursor:pointer;padding:0 4px;}
+
+.form-row{margin-bottom:13px;}
+.form-row label{display:block;font-size:.8rem;font-weight:bold;
+  color:var(--sky-dark);margin-bottom:5px;}
+.form-row input,.form-row select,.form-row textarea{
+  width:100%;padding:10px 13px;border:2px solid var(--border);
+  border-radius:10px;font-family:'Times New Roman',serif;
+  font-size:.9rem;background:#fff;color:var(--text);outline:none;transition:.2s;
+}
+.form-row input:focus,.form-row select:focus{border-color:var(--sky);background:#fff;}
+.form-row input[readonly]{background:var(--sky-light);color:var(--green);
+  font-weight:bold;cursor:default;border-color:var(--sky);}
+
+/* Roll toggle */
+.roll-toggle{display:flex;gap:8px;margin-top:4px;}
+.roll-opt{flex:1;}
+.roll-opt input{display:none;}
+.roll-opt label{
+  display:block;text-align:center;padding:10px 6px;border:2px solid var(--border);
+  border-radius:10px;font-size:.82rem;font-weight:bold;cursor:pointer;
+  background:#fff;color:var(--text2);transition:.2s;margin:0;
+}
+.roll-opt input:checked + label{background:var(--sky-dark);border-color:var(--sky-dark);color:#fff;}
+
+/* Calc preview */
+.calc-box{
+  background:linear-gradient(135deg,#EAF7FF,#F0FBF0);
+  border:2px solid var(--sky);border-radius:12px;
+  padding:13px 14px;margin-bottom:14px;display:none;
+}
+.calc-box.show{display:block;}
+.calc-row{display:flex;justify-content:space-between;
+  font-size:.82rem;padding:4px 0;border-bottom:1px dotted #C0D8E8;}
+.calc-row:last-child{border:none;font-size:.92rem;padding-top:7px;}
+.calc-row span:first-child{color:var(--text2);}
+.calc-row span:last-child{font-weight:bold;color:var(--sky-dark);}
+.calc-row.cr-total span:last-child{color:var(--red);font-size:1rem;}
+
+/* Prices editor */
+.price-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.price-row label{flex:1;font-size:.82rem;font-weight:bold;color:var(--sky-dark);}
+.price-row input{width:100px;padding:8px 10px;border:2px solid var(--border);
+  border-radius:9px;font-family:inherit;font-size:.88rem;text-align:right;
+  background:#fff;outline:none;}
+.price-row input:focus{border-color:var(--sky);}
+.price-unit{font-size:.75rem;color:var(--text2);white-space:nowrap;}
+
+/* Buttons */
+.btn{display:block;padding:13px;border:none;border-radius:11px;
+  font-family:'Times New Roman',serif;font-size:.92rem;font-weight:bold;
+  cursor:pointer;text-align:center;transition:.18s;width:100%;}
+.btn-gold{background:linear-gradient(135deg,#E8A020,var(--gold-dark));color:#fff;
+  box-shadow:0 4px 14px rgba(168,108,0,.3);}
+.btn-gold:hover{box-shadow:0 6px 18px rgba(168,108,0,.4);transform:translateY(-1px);}
+.btn-sky{background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;}
+.btn-green{background:linear-gradient(135deg,#3AA870,var(--green));color:#fff;}
+.btn-red{background:var(--red);color:#fff;padding:8px 14px;font-size:.78rem;
+  border-radius:8px;width:auto;display:inline-block;}
+.btn-outline{background:transparent;border:2px solid var(--sky-dark);
+  color:var(--sky-dark);padding:10px;}
+
+/* FAB */
+.fab{position:fixed;bottom:22px;right:18px;width:56px;height:56px;
+  border-radius:50%;background:linear-gradient(135deg,#E8A020,var(--gold-dark));
+  color:#fff;font-size:1.6rem;border:none;cursor:pointer;
+  box-shadow:0 6px 20px rgba(168,108,0,.4);z-index:100;
+  display:flex;align-items:center;justify-content:center;transition:.2s;}
+.fab:hover{transform:scale(1.08);}
+
+/* Back btn */
+.back-btn{background:none;border:none;color:var(--sky-dark);
+  font-family:inherit;font-size:.88rem;font-weight:bold;cursor:pointer;
+  padding:0;margin-bottom:14px;display:flex;align-items:center;gap:5px;}
+
+/* Tabs inside detail */
+.mini-tabs{display:flex;background:rgba(255,255,255,.5);
+  border-radius:12px;padding:4px;gap:4px;margin-bottom:14px;}
+.mini-tab{flex:1;padding:9px 6px;border:none;background:transparent;
+  font-family:inherit;font-size:.8rem;font-weight:bold;color:var(--text2);
+  border-radius:9px;cursor:pointer;transition:.2s;}
+.mini-tab.active{background:#fff;color:var(--sky-dark);box-shadow:0 2px 8px rgba(0,0,0,.1);}
+
+/* Empty */
+.empty{text-align:center;padding:28px;color:var(--text2);font-style:italic;font-size:.88rem;}
+
+/* Toast */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:#1A4A72;color:#fff;padding:11px 22px;border-radius:25px;
+  font-family:inherit;font-size:.85rem;font-weight:bold;
+  z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.25);
+  opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+
+.section-lbl{font-size:.72rem;font-weight:bold;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;padding-left:2px;}
+
+@media(max-width:360px){
+  .dh-summary{grid-template-columns:1fr 1fr;}
+  .dh-box:last-child{grid-column:1/-1;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  HEADER                                                -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="app-header" id="app-header">
+  <div>
+    <h1>🧵 ክሬዲት መከታተያ</h1>
+    <p id="header-sub">የጨርቅ ሱቅ • Credit Tracker</p>
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" onclick="openPricesModal()" title="ዋጋ ቀይር">⚙️ ዋጋ</button>
+    <button class="icon-btn" id="back-header-btn" onclick="goBack()" style="display:none;">← ተመለስ</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  VIEW: DASHBOARD                                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="view-dashboard" class="view active">
+
+  <div class="dash-grid">
+    <div class="dash-box total-credit">
+      <div class="d-lbl">ጠቅላላ ክሬዲት</div>
+      <div class="d-val" id="d-total-credit">0 ብር</div>
+    </div>
+    <div class="dash-box total-paid">
+      <div class="d-lbl">ጠቅላላ ክፍያ</div>
+      <div class="d-val" id="d-total-paid">0 ብር</div>
+    </div>
+    <div class="dash-box remaining">
+      <div class="d-lbl">ቀሪ ሂሳብ</div>
+      <div class="d-val" id="d-remaining">0 ብር</div>
+    </div>
+    <div class="dash-box customers">
+      <div class="d-lbl">ደምበኞች</div>
+      <div class="d-val" id="d-count">0</div>
+    </div>
+  </div>
+
+  <p class="section-lbl">👥 ደምበኞች</p>
+  <div id="customer-list">
+    <div class="empty">ምንም ደምበኛ የለም። ➕ ተጫን ደምበኛ ጨምር።</div>
+  </div>
+
+  <button class="fab" onclick="openAddCustomerModal()">＋</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  VIEW: CUSTOMER DETAIL                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="view-detail" class="view">
+
+  <button class="back-btn" onclick="goBack()">← ወደ ዝርዝር ተመለስ</button>
+
+  <div class="detail-header" id="dh-block">
+    <div class="dh-name" id="dh-name">—</div>
+    <div class="dh-phone" id="dh-phone"></div>
+    <div class="dh-summary">
+      <div class="dh-box">
+        <span class="dl">ጠቅላላ ክሬዲት</span>
+        <span class="dv" id="dh-credit">0</span>
+      </div>
+      <div class="dh-box">
+        <span class="dl">ጠቅላላ ክፍያ</span>
+        <span class="dv" id="dh-paid">0</span>
+      </div>
+      <div class="dh-box dh-remaining">
+        <span class="dl">ቀሪ ሂሳብ</span>
+        <span class="dv" id="dh-remain">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-actions">
+    <button class="btn btn-red" onclick="openPurchaseModal()">🧵 ሽያጭ ጨምር</button>
+    <button class="btn btn-green" onclick="openPaymentModal()">💳 ክፍያ ጨምር</button>
+  </div>
+
+  <div class="mini-tabs">
+    <button class="mini-tab active" onclick="switchDetailTab('all',this)">ሁሉም</button>
+    <button class="mini-tab" onclick="switchDetailTab('purchase',this)">ሽያጭ</button>
+    <button class="mini-tab" onclick="switchDetailTab('payment',this)">ክፍያ</button>
+  </div>
+
+  <div id="detail-txn-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODAL: ADD CUSTOMER                                   -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-customer">
+  <div class="modal-box">
+    <div class="modal-title">
+      👤 አዲስ ደምበኛ ይጨምሩ
+      <button class="modal-close" onclick="closeModal('modal-customer')">✕</button>
+    </div>
+    <div class="form-row">
+      <label>ሙሉ ስም *</label>
+      <input type="text" id="c-name" placeholder="የደምበኛ ስም...">
+    </div>
+    <div class="form-row">
+      <label>ስልክ ቁጥር (አማራጭ)</label>
+      <input type="tel" id="c-phone" placeholder="09...">
+    </div>
+    <div class="form-row">
+      <label>ማስታወሻ (አማራጭ)</label>
+      <input type="text" id="c-note" placeholder="ተጨማሪ መረጃ...">
+    </div>
+    <button class="btn btn-gold" onclick="addCustomer()">✅ ደምበኛ ይጨምሩ</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODAL: ADD CREDIT PURCHASE                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-purchase">
+  <div class="modal-box">
+    <div class="modal-title">
+      🧵 አዲስ ሽያጭ (ክሬዲት)
+      <button class="modal-close" onclick="closeModal('modal-purchase')">✕</button>
+    </div>
+
+    <!-- Fabric -->
+    <div class="form-row">
+      <label>🧵 የጨርቅ ዓይነት *</label>
+      <select id="p-fabric" onchange="onPFabricChange()">
+        <option value="">— ጨርቅ ይምረጡ —</option>
+      </select>
+    </div>
+
+    <!-- Cost per meter (auto) -->
+    <div class="form-row">
+      <label>💲 ወጪ ዋጋ (ብር/ሜ) — ⚙️ ራሱ ይሞላል</label>
+      <input type="number" id="p-cost-pm" readonly placeholder="ጨርቁን ሲምረጡ ይሞላል">
+    </div>
+
+    <!-- Meters per roll -->
+    <div class="form-row">
+      <label>📏 ሜትር/ሮል</label>
+      <div class="roll-toggle">
+        <div class="roll-opt">
+          <input type="radio" name="p-mpr" id="p-m1" value="22.85" onchange="onMPRChange()">
+          <label for="p-m1">22.85 ሜ</label>
+        </div>
+        <div class="roll-opt">
+          <input type="radio" name="p-mpr" id="p-m2" value="manual" onchange="onMPRChange()">
+          <label for="p-m2">ሌላ ሜትር</label>
+        </div>
+      </div>
+      <input type="number" id="p-mpr-manual" placeholder="ሜትር/ሮል ያስገቡ" step="0.01" min="0.01"
+             style="margin-top:8px;display:none;" oninput="recalcP()">
+    </div>
+
+    <!-- Rolls -->
+    <div class="form-row">
+      <label>🔄 ሮሎች ብዛት *</label>
+      <input type="number" id="p-rolls" placeholder="ምን ያህል ሮሎች?" min="0.5" step="0.5" oninput="recalcP()">
+    </div>
+
+    <!-- Total meters (auto) -->
+    <div class="form-row">
+      <label>📐 ጠቅላላ ሜትር — ⚙️ ራሱ ይሞላል</label>
+      <input type="number" id="p-total-m" readonly placeholder="ሮሎች × ሜትር/ሮ">
+    </div>
+
+    <!-- Calc preview -->
+    <div class="calc-box" id="p-calc">
+      <div class="calc-row"><span>ሮሎች × ሜ/ሮ</span><span id="pc-meters">—</span></div>
+      <div class="calc-row"><span>ወጪ (ሜ × ዋጋ/ሜ)</span><span id="pc-cost">—</span></div>
+      <div class="calc-row"><span>ሽያጭ ዋጋ</span><span id="pc-sell">—</span></div>
+      <div class="calc-row cr-total"><span>💳 ክሬዲት መጠን</span><span id="pc-credit" style="color:var(--red)">—</span></div>
+    </div>
+
+    <!-- Selling price -->
+    <div class="form-row">
+      <label>💰 ሽያጭ ዋጋ (ብር) — ክሬዲት መጠን *</label>
+      <input type="number" id="p-sell" placeholder="ሽያጭ ዋጋ ያስገቡ" min="0" step="0.01" oninput="recalcP()">
+    </div>
+
+    <!-- Date -->
+    <div class="form-row">
+      <label>📅 ቀን</label>
+      <input type="date" id="p-date">
+    </div>
+
+    <!-- Note -->
+    <div class="form-row">
+      <label>📝 ማስታወሻ (አማራጭ)</label>
+      <input type="text" id="p-note" placeholder="ማስታወሻ...">
+    </div>
+
+    <button class="btn btn-red" onclick="addPurchase()">✅ ሽያጭ ጨምር (ክሬዲት)</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODAL: ADD PAYMENT                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal-box">
+    <div class="modal-title">
+      💳 ክፍያ ያስገቡ
+      <button class="modal-close" onclick="closeModal('modal-payment')">✕</button>
+    </div>
+
+    <div class="form-row">
+      <label>💰 የክፍያ መጠን (ብር) *</label>
+      <input type="number" id="pay-amount" placeholder="ምን ያህል ብር?" min="0.01" step="0.01">
+    </div>
+
+    <div class="form-row">
+      <label>💳 የክፍያ ዓይነት *</label>
+      <select id="pay-method">
+        <option value="ጥሬ ገንዘብ">ጥሬ ገንዘብ (Cash)</option>
+        <option value="CBE">CBE Birr</option>
+        <option value="BOA">BOA (Bank of Abyssinia)</option>
+        <option value="Awash">Awash Bank</option>
+        <option value="ቴሌብር">ቴሌብር</option>
+        <option value="ሌላ">ሌላ / Other</option>
+      </select>
+    </div>
+
+    <div class="form-row" id="pay-ref-row" style="display:none;">
+      <label>🔖 የማጣቀሻ ቁጥር (አማራጭ)</label>
+      <input type="text" id="pay-ref" placeholder="Transaction / Reference #">
+    </div>
+
+    <div class="form-row">
+      <label>📅 ቀን</label>
+      <input type="date" id="pay-date">
+    </div>
+
+    <div class="form-row">
+      <label>📝 ማስታወሻ (አማራጭ)</label>
+      <input type="text" id="pay-note" placeholder="ማስታወሻ...">
+    </div>
+
+    <div id="pay-remaining-info" style="background:var(--red-light);border-radius:10px;padding:11px 13px;margin-bottom:13px;font-size:.85rem;color:var(--red);font-weight:bold;display:none;">
+      ⚠️ ቀሪ ሂሳብ: <span id="pay-remain-lbl">—</span>
+    </div>
+
+    <button class="btn btn-green" onclick="addPayment()">✅ ክፍያ ጨምር</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODAL: EDIT PRICES                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-prices">
+  <div class="modal-box">
+    <div class="modal-title">
+      ⚙️ የጨርቅ ዋጋ ያስተካክሉ
+      <button class="modal-close" onclick="closeModal('modal-prices')">✕</button>
+    </div>
+    <p style="font-size:.78rem;color:var(--text2);margin-bottom:14px;line-height:1.5;">
+      ዋጋ ሲቀይሩ ለሁሉም አዲስ ሽያጭ ይሠራጫል። የቀደሙ መዝገቦች አይለወጡም።
+    </p>
+    <div id="prices-form"></div>
+    <button class="btn btn-gold" onclick="savePrices()">💾 ዋጋ አስቀምጥ</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  JAVASCRIPT                                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const DEFAULT_PRICES = {
+  'Lee Stretch':284,'KT':247,'DxT Lemut':240,'LW':255,
+  'LW Print':270,'DxT Print Free':250,'DxT Print Lee':262,
+  'Double Face':240,'Double Face Print':255,'Square':265,'FM Print':270
+};
+
+let prices  = JSON.parse(localStorage.getItem('fabricPrices2') || 'null') || {...DEFAULT_PRICES};
+let customers = JSON.parse(localStorage.getItem('creditCustomers') || '[]');
+let currentCustomerId = null;
+let detailTab = 'all';
+
+function save(){
+  localStorage.setItem('creditCustomers', JSON.stringify(customers));
+  localStorage.setItem('fabricPrices2', JSON.stringify(prices));
+}
+
+// ── UTILS ──────────────────────────────────────────────────
+function fmt(n){
+  if(n===null||n===undefined||isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-ET',{minimumFractionDigits:2,maximumFractionDigits:2})+' ብር';
+}
+function fmtN(n){
+  if(!n&&n!==0) return '—';
+  return Number(n).toLocaleString('en-ET',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+function todayISO(){return new Date().toISOString().slice(0,10);}
+function fmtDate(iso){
+  if(!iso) return '';
+  const d=new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('am-ET',{year:'numeric',month:'short',day:'numeric'});
+}
+function toast(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.background=ok?'#1A5A8A':'#C0392B';
+  t.style.opacity='1';
+  setTimeout(()=>t.style.opacity='0',2400);
+}
+function uid(){return Date.now()+Math.floor(Math.random()*1000);}
+
+// ── CUSTOMER HELPERS ──────────────────────────────────────
+function getCustomer(id){return customers.find(c=>c.id===id);}
+function totalCredit(c){return (c.purchases||[]).reduce((s,p)=>s+(p.sellPrice||0),0);}
+function totalPaid(c){return (c.payments||[]).reduce((s,p)=>s+(p.amount||0),0);}
+function remaining(c){return totalCredit(c)-totalPaid(c);}
+
+// ── VIEWS ─────────────────────────────────────────────────
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  const isDetail = id==='detail';
+  document.getElementById('back-header-btn').style.display = isDetail?'inline-block':'none';
+  document.getElementById('header-sub').textContent =
+    isDetail ? (getCustomer(currentCustomerId)||{name:'—'}).name : 'የጨርቅ ሱቅ • Credit Tracker';
+}
+function goBack(){showView('dashboard');renderDashboard();}
+
+// ── DASHBOARD ─────────────────────────────────────────────
+function renderDashboard(){
+  const totC = customers.reduce((s,c)=>s+totalCredit(c),0);
+  const totP = customers.reduce((s,c)=>s+totalPaid(c),0);
+  const totR = totC-totP;
+  document.getElementById('d-total-credit').textContent = fmt(totC);
+  document.getElementById('d-total-paid').textContent   = fmt(totP);
+  document.getElementById('d-remaining').textContent    = fmt(totR);
+  document.getElementById('d-count').textContent        = customers.length;
+
+  const list = document.getElementById('customer-list');
+  if(!customers.length){
+    list.innerHTML='<div class="empty">ምንም ደምበኛ የለም።<br>➕ ተጫን ደምበኛ ጨምር።</div>';
+    return;
+  }
+
+  // Sort by remaining desc
+  const sorted=[...customers].sort((a,b)=>remaining(b)-remaining(a));
+  list.innerHTML = sorted.map(c=>{
+    const cred=totalCredit(c), paid=totalPaid(c), rem=remaining(c);
+    const pct = cred>0?Math.min(100,(paid/cred)*100):100;
+    let cardClass='', badgeClass='', badgeTxt='';
+    if(rem<=0){cardClass='paid';badgeClass='badge-paid';badgeTxt='✅ ተከፍሏል';}
+    else if(paid>0){cardClass='partial';badgeClass='badge-partial';badgeTxt='⏳ ከፊል';}
+    else{cardClass='high';badgeClass='badge-owed';badgeTxt='❌ ያልተከፈለ';}
+    const lastTxn=[...(c.purchases||[]),...(c.payments||[])].sort((a,b)=>b.id-a.id)[0];
+    return `
+    <div class="customer-card ${cardClass}" onclick="openDetail('${c.id}')">
+      <div class="cc-header">
+        <div>
+          <div class="cc-name">${c.name}</div>
+          ${c.phone?`<div class="cc-phone">📞 ${c.phone}</div>`:''}
+        </div>
+        <span class="cc-badge ${badgeClass}">${badgeTxt}</span>
+      </div>
+      <div style="margin-top:9px;background:#EEE;border-radius:6px;height:6px;overflow:hidden;">
+        <div style="width:${pct}%;background:${rem<=0?'var(--green)':paid>0?'var(--orange)':'var(--red)'};height:100%;border-radius:6px;transition:.4s;"></div>
+      </div>
+      <div class="cc-amounts">
+        <div class="cc-amt"><span class="a-lbl">ክሬዲት</span><span class="a-val a-red">${fmt(cred)}</span></div>
+        <div class="cc-amt"><span class="a-lbl">ክፍያ</span><span class="a-val a-green">${fmt(paid)}</span></div>
+        <div class="cc-amt"><span class="a-lbl">ቀሪ</span><span class="a-val a-gold">${fmt(rem)}</span></div>
+      </div>
+      ${lastTxn?`<div class="cc-last">⏱ ዝለኛ: ${fmtDate(lastTxn.date)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL VIEW ───────────────────────────────────────────
+function openDetail(id){
+  currentCustomerId = id;
+  const c=getCustomer(id);
+  if(!c) return;
+  showView('detail');
+  renderDetail(c);
+}
+
+function renderDetail(c){
+  const cred=totalCredit(c), paid=totalPaid(c), rem=remaining(c);
+  document.getElementById('dh-name').textContent  = c.name;
+  document.getElementById('dh-phone').textContent = c.phone?'📞 '+c.phone:'';
+  document.getElementById('dh-credit').textContent = fmt(cred);
+  document.getElementById('dh-paid').textContent   = fmt(paid);
+  document.getElementById('dh-remain').textContent = fmt(rem);
+  renderTxns(c);
+}
+
+function switchDetailTab(tab, btn){
+  detailTab=tab;
+  document.querySelectorAll('.mini-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c=getCustomer(currentCustomerId);
+  if(c) renderTxns(c);
+}
+
+function renderTxns(c){
+  const purchases=(c.purchases||[]).map(p=>({...p,kind:'purchase'}));
+  const payments=(c.payments||[]).map(p=>({...p,kind:'payment'}));
+  let all=[...purchases,...payments].sort((a,b)=>b.id-a.id);
+  if(detailTab==='purchase') all=purchases.sort((a,b)=>b.id-a.id);
+  if(detailTab==='payment')  all=payments.sort((a,b)=>b.id-a.id);
+
+  const el=document.getElementById('detail-txn-list');
+  if(!all.length){el.innerHTML='<div class="empty">ምንም መዝገብ የለም።</div>';return;}
+
+  el.innerHTML=all.map(t=>{
+    if(t.kind==='purchase') return `
+      <div class="txn-item purchase">
+        <button class="txn-del" onclick="deleteTxn('purchase','${t.id}')">✕</button>
+        <div class="txn-header">
+          <span class="txn-label">🧵 ${t.fabric}</span>
+          <span class="txn-date">${fmtDate(t.date)}</span>
+        </div>
+        <div class="txn-detail">
+          ${t.rolls} ሮሎች × ${fmtN(t.metersPerRoll)} ሜ/ሮ = ${fmtN(t.totalMeters)} ሜ
+          | ወጪ/ሜ: ${fmtN(t.costPerMeter)} ብር
+          ${t.note?' | '+t.note:''}
+        </div>
+        <div class="txn-amount" style="color:var(--red);">💳 ክሬዲት: ${fmt(t.sellPrice)}</div>
+        <div style="font-size:.75rem;color:var(--text2);margin-top:3px;">ወጪ: ${fmt(t.totalCost)}</div>
+      </div>`;
+    if(t.kind==='payment') return `
+      <div class="txn-item payment">
+        <button class="txn-del" onclick="deleteTxn('payment','${t.id}')">✕</button>
+        <div class="txn-header">
+          <span class="txn-label">💳 ክፍያ — ${t.method}</span>
+          <span class="txn-date">${fmtDate(t.date)}</span>
+        </div>
+        <div class="txn-detail">
+          ${t.ref?'Ref: '+t.ref+' | ':''}${t.note||''}
+        </div>
+        <div class="txn-amount" style="color:var(--green);">✅ ተከፈለ: ${fmt(t.amount)}</div>
+      </div>`;
+    return '';
+  }).join('');
+}
+
+function deleteTxn(kind, id){
+  if(!confirm('ይህን መዝገብ ይሰርዙ?')) return;
+  const c=getCustomer(currentCustomerId);
+  if(!c) return;
+  if(kind==='purchase') c.purchases=(c.purchases||[]).filter(p=>String(p.id)!==String(id));
+  if(kind==='payment')  c.payments=(c.payments||[]).filter(p=>String(p.id)!==String(id));
+  save(); renderDetail(c); toast('🗑 ተሰርዟል');
+}
+
+// ── ADD CUSTOMER ──────────────────────────────────────────
+function openAddCustomerModal(){openModal('modal-customer');}
+function addCustomer(){
+  const name=document.getElementById('c-name').value.trim();
+  if(!name){toast('ስም ያስገቡ!',false);return;}
+  const c={
+    id:uid(), name, phone:document.getElementById('c-phone').value.trim(),
+    note:document.getElementById('c-note').value.trim(),
+    createdAt:todayISO(), purchases:[], payments:[]
+  };
+  customers.push(c); save();
+  closeModal('modal-customer');
+  document.getElementById('c-name').value='';
+  document.getElementById('c-phone').value='';
+  document.getElementById('c-note').value='';
+  renderDashboard();
+  toast('✅ ደምበኛ ተጨምሯል!');
+  // Auto-open detail
+  openDetail(c.id);
+}
+
+// ── PURCHASE MODAL ────────────────────────────────────────
+function openPurchaseModal(){
+  populateFabricSelect();
+  document.getElementById('p-date').value=todayISO();
+  document.getElementById('p-rolls').value='';
+  document.getElementById('p-sell').value='';
+  document.getElementById('p-note').value='';
+  document.getElementById('p-total-m').value='';
+  document.getElementById('p-cost-pm').value='';
+  document.getElementById('p-mpr-manual').style.display='none';
+  document.querySelectorAll('input[name="p-mpr"]').forEach(r=>r.checked=false);
+  document.getElementById('p-calc').classList.remove('show');
+  openModal('modal-purchase');
+}
+
+function populateFabricSelect(){
+  const sel=document.getElementById('p-fabric');
+  sel.innerHTML='<option value="">— ጨርቅ ይምረጡ —</option>';
+  Object.entries(prices).forEach(([name,price])=>{
+    sel.innerHTML+=`<option value="${name}">${name} (${price} ብር/ሜ)</option>`;
+  });
+}
+
+function onPFabricChange(){
+  const fab=document.getElementById('p-fabric').value;
+  document.getElementById('p-cost-pm').value = fab&&prices[fab] ? prices[fab] : '';
+  recalcP();
+}
+
+function onMPRChange(){
+  const sel=document.querySelector('input[name="p-mpr"]:checked');
+  const manual=document.getElementById('p-mpr-manual');
+  manual.style.display=sel&&sel.value==='manual'?'block':'none';
+  if(sel&&sel.value==='manual'){manual.focus();}
+  recalcP();
+}
+
+function getMPR(){
+  const sel=document.querySelector('input[name="p-mpr"]:checked');
+  if(!sel) return null;
+  if(sel.value==='manual'){
+    const v=parseFloat(document.getElementById('p-mpr-manual').value);
+    return isNaN(v)||v<=0?null:v;
+  }
+  return parseFloat(sel.value);
+}
+
+function recalcP(){
+  const costPM = parseFloat(document.getElementById('p-cost-pm').value)||0;
+  const mpr = getMPR();
+  const rolls = parseFloat(document.getElementById('p-rolls').value)||0;
+  const sell = parseFloat(document.getElementById('p-sell').value)||0;
+  const calc=document.getElementById('p-calc');
+
+  if(mpr&&rolls>0){
+    const tm=mpr*rolls;
+    document.getElementById('p-total-m').value=tm.toFixed(2);
+    if(costPM>0){
+      const tc=tm*costPM;
+      calc.classList.add('show');
+      document.getElementById('pc-meters').textContent=fmtN(tm)+' ሜ';
+      document.getElementById('pc-cost').textContent=fmt(tc);
+      document.getElementById('pc-sell').textContent=sell>0?fmt(sell):'— (ገና አልተሞላም)';
+      document.getElementById('pc-credit').textContent=sell>0?fmt(sell):'—';
+    } else { calc.classList.remove('show'); }
+  } else {
+    document.getElementById('p-total-m').value='';
+    calc.classList.remove('show');
+  }
+}
+
+function addPurchase(){
+  const fab=document.getElementById('p-fabric').value;
+  if(!fab){toast('ጨርቅ ዓይነት ይምረጡ!',false);return;}
+  const mpr=getMPR();
+  if(!mpr){toast('ሜትር/ሮል ይምረጡ!',false);return;}
+  const rolls=parseFloat(document.getElementById('p-rolls').value);
+  if(!rolls||rolls<=0){toast('ሮሎች ቁጥር ያስገቡ!',false);return;}
+  const sell=parseFloat(document.getElementById('p-sell').value);
+  if(!sell||sell<=0){toast('ሽያጭ ዋጋ ያስገቡ!',false);return;}
+  const costPM=parseFloat(document.getElementById('p-cost-pm').value)||prices[fab]||0;
+  const tm=mpr*rolls;
+  const tc=tm*costPM;
+  const c=getCustomer(currentCustomerId);
+  if(!c) return;
+  c.purchases=(c.purchases||[]);
+  c.purchases.push({
+    id:uid(), date:document.getElementById('p-date').value||todayISO(),
+    fabric:fab, costPerMeter:costPM, metersPerRoll:mpr,
+    rolls:rolls, totalMeters:tm, totalCost:tc, sellPrice:sell,
+    note:document.getElementById('p-note').value.trim()
+  });
+  save(); closeModal('modal-purchase');
+  renderDetail(c); toast('✅ ሽያጭ ተጨምሯል!');
+}
+
+// ── PAYMENT MODAL ─────────────────────────────────────────
+function openPaymentModal(){
+  const c=getCustomer(currentCustomerId);
+  const rem=c?remaining(c):0;
+  document.getElementById('pay-amount').value='';
+  document.getElementById('pay-ref').value='';
+  document.getElementById('pay-note').value='';
+  document.getElementById('pay-date').value=todayISO();
+  document.getElementById('pay-method').value='ጥሬ ገንዘብ';
+  document.getElementById('pay-ref-row').style.display='none';
+  const ri=document.getElementById('pay-remaining-info');
+  if(rem>0){
+    ri.style.display='block';
+    document.getElementById('pay-remain-lbl').textContent=fmt(rem);
+  } else { ri.style.display='none'; }
+  openModal('modal-payment');
+}
+
+document.getElementById('pay-method').addEventListener('change',function(){
+  const needs=['CBE','BOA','Awash','ቴሌብር'];
+  document.getElementById('pay-ref-row').style.display=
+    needs.includes(this.value)?'block':'none';
+});
+
+function addPayment(){
+  const amount=parseFloat(document.getElementById('pay-amount').value);
+  if(!amount||amount<=0){toast('ክፍያ መጠን ያስገቡ!',false);return;}
+  const c=getCustomer(currentCustomerId);
+  if(!c) return;
+  const rem=remaining(c);
+  if(amount>rem+0.01){
+    if(!confirm(`ቀሪ ሂሳቡ ${fmt(rem)} ነው። ${fmt(amount)} ለመክፈል ይፈቀዳሉ?`)) return;
+  }
+  c.payments=(c.payments||[]);
+  c.payments.push({
+    id:uid(), date:document.getElementById('pay-date').value||todayISO(),
+    amount:amount, method:document.getElementById('pay-method').value,
+    ref:document.getElementById('pay-ref').value.trim(),
+    note:document.getElementById('pay-note').value.trim()
+  });
+  save(); closeModal('modal-payment');
+  renderDetail(c); toast('💳 ክፍያ ተጨምሯል!');
+}
+
+// ── PRICES MODAL ──────────────────────────────────────────
+function openPricesModal(){
+  const form=document.getElementById('prices-form');
+  form.innerHTML=Object.entries(prices).map(([name,price])=>`
+    <div class="price-row">
+      <label>${name}</label>
+      <input type="number" id="pr-${name.replace(/\s+/g,'_')}" value="${price}" min="1" step="0.5">
+      <span class="price-unit">ብር/ሜ</span>
+    </div>`).join('');
+  openModal('modal-prices');
+}
+
+function savePrices(){
+  Object.keys(prices).forEach(name=>{
+    const inp=document.getElementById('pr-'+name.replace(/\s+/g,'_'));
+    if(inp){const v=parseFloat(inp.value);if(v>0)prices[name]=v;}
+  });
+  save(); closeModal('modal-prices');
+  toast('✅ ዋጋ ተቀምጧል!');
+}
+
+// ── MODAL HELPERS ─────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
+});
+
+// ── INIT ──────────────────────────────────────────────────
+renderDashboard();
+</script>
+</body>
+</html>
+ENDOFFILE
+echo "Done"
